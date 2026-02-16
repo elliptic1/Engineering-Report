@@ -23,7 +23,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, summary, citations, evidence });
   } catch (error) {
+    console.error("Analyze error:", error);
     const message = error instanceof Error ? error.message : "Unexpected error";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    const stack = error instanceof Error ? error.stack : undefined;
+    return NextResponse.json({ ok: false, error: message, stack }, { status: 500 });
   }
 }

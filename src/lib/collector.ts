@@ -6,7 +6,7 @@ import {
   getPullRequestReviews,
   listCommits,
   listPullRequests
-} from "./mcp";
+} from "./github";
 import { chooseNotableCommits, chooseNotablePRs, type PullRequestCandidate } from "./text";
 
 const MAX_PULL_REQUESTS = 7;
