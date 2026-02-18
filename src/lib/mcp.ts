@@ -26,7 +26,12 @@ async function request<T>(tool: string, params: unknown): Promise<T> {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ params })
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: tool,
+        params
+      })
     });
 
     if (response.status === 429 || response.status === 403) {

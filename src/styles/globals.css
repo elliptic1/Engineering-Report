@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 min-h-screen antialiased;
+  @apply bg-dark-900 text-slate-100 min-h-screen antialiased;
 }
 
 a {
-  @apply text-sky-400 underline underline-offset-4;
+  @apply text-primary-500 underline underline-offset-4;
 }
 
 button:disabled {
