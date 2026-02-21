@@ -222,15 +222,29 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <button
-                  className={`mt-8 w-full rounded-lg px-6 py-3 font-semibold transition ${
-                    plan.highlighted
-                      ? "bg-primary-500 text-dark-900 hover:bg-primary-400"
-                      : "border border-dark-600 text-white hover:border-dark-500"
-                  }`}
-                >
-                  {plan.cta}
-                </button>
+                {user ? (
+                  <Link
+                    href={plan.highlighted ? "/settings" : "/analyze"}
+                    className={`mt-8 block w-full rounded-lg px-6 py-3 text-center font-semibold no-underline transition ${
+                      plan.highlighted
+                        ? "bg-primary-500 text-dark-900 hover:bg-primary-400"
+                        : "border border-dark-600 text-white hover:border-dark-500"
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => signInWithGitHub()}
+                    className={`mt-8 w-full rounded-lg px-6 py-3 font-semibold transition ${
+                      plan.highlighted
+                        ? "bg-primary-500 text-dark-900 hover:bg-primary-400"
+                        : "border border-dark-600 text-white hover:border-dark-500"
+                    }`}
+                  >
+                    {plan.cta}
+                  </button>
+                )}
               </div>
             ))}
           </div>

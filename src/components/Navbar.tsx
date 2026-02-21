@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Navbar() {
-  const { user, loading, signInWithGitHub, signOut } = useAuth();
+  const { user, loading, signInWithGitHub } = useAuth();
 
   return (
     <nav className="border-b border-dark-600 bg-dark-900">
@@ -47,19 +48,21 @@ export default function Navbar() {
               >
                 Settings
               </Link>
-              <button
-                onClick={() => signOut()}
-                className="rounded-lg border border-dark-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-dark-500 hover:text-white"
-              >
-                Sign Out
-              </button>
-              {user.photoURL && (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || "User"}
-                  className="h-8 w-8 rounded-full"
-                />
-              )}
+              <Link href="/settings">
+                {user.photoURL ? (
+                  <Image
+                    src={user.photoURL}
+                    alt={user.displayName || "User"}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full"
+                  />
+                ) : (
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dark-700 text-sm text-slate-300">
+                    {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </Link>
             </>
           ) : loading ? (
             // Brief loading state - but NOT a skeleton that breaks the page

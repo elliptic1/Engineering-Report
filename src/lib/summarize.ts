@@ -133,16 +133,15 @@ function uniqueCitations(evidence: EvidenceT): string[] {
   return Array.from(links).slice(0, 6);
 }
 
-export function summarizeContributor(evidence: EvidenceT): { summary: string; citations: string[] } {
+function buildDeterministicSummary(evidence: EvidenceT): string {
   const headline = buildHeadline(evidence);
   const keyImpacts = keyImpactBullets(evidence);
   const collab = collaborationNotes(evidence);
   const signals = engineeringSignals(evidence);
   const growth = growthIdeas();
   const suggestions = nextSprintSuggestions(evidence);
-  const citations = uniqueCitations(evidence);
 
-  const summary = [
+  return [
     "## Headline",
     headline,
     "",
@@ -161,11 +160,120 @@ export function summarizeContributor(evidence: EvidenceT): { summary: string; ci
     "### Next-sprint suggestions",
     ...suggestions.map((line) => `- ${line}`)
   ].join("\n");
-
-  return { summary, citations };
 }
 
 export async function callChatGPT(evidence: EvidenceT): Promise<string> {
-  // TODO: Integrate ChatGPT once the production key is available.
-  return Promise.resolve(`LLM summary placeholder for ${evidence.login} in ${evidence.repo}`);
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
+
+  const systemPrompt = [
+    "You are an engineering manager's assistant that produces sprint-ready contributor summaries.",
+    "Given evidence of a contributor's GitHub activity (pull requests, commits, and code reviews),",
+    "generate a concise markdown summary with exactly these sections:",
+    "",
+    "## Headline",
+    "One sentence summarizing the contributor's most important work this sprint.",
+    "",
+    "### Key impacts",
+    "A bullet list of the most significant changes. Reference PR numbers and commit SHAs where relevant.",
+    "",
+    "### Collaboration & review notes",
+    "Summarize the contributor's review activity and team interactions.",
+    "",
+    "### Engineering signals",
+    "Note quality indicators such as test coverage, cleanup work, careful refactoring, or incremental delivery.",
+    "",
+    "### Growth & coaching",
+    "One or two actionable suggestions for the contributor's professional development.",
+    "",
+    "### Next-sprint suggestions",
+    "Forward-looking recommendations based on the current sprint's work.",
+    "",
+    "Guidelines:",
+    "- Be specific and cite PR numbers, commit SHAs, and file paths from the evidence.",
+    "- Keep each section concise — 1-4 bullet points max.",
+    "- Use a professional but encouraging tone suitable for a 1:1 or sprint review.",
+    "- Do not fabricate information. Only reference data present in the evidence."
+  ].join("\n");
+
+  const userMessage = JSON.stringify(
+    {
+      repo: evidence.repo,
+      contributor: evidence.login,
+      window: evidence.window,
+      pullRequests: evidence.prs.map((pr) => ({
+        number: pr.number,
+        title: pr.title,
+        url: pr.url,
+        createdAt: pr.createdAt,
+        mergedAt: pr.mergedAt,
+        labels: pr.labels,
+        files: pr.files,
+        reviews: pr.reviews
+      })),
+      commits: evidence.commits.map((c) => ({
+        sha: c.sha,
+        message: c.message.split("\n")[0],
+        date: c.committedDate,
+        additions: c.additions,
+        deletions: c.deletions
+      })),
+      reviewsGiven: evidence.reviewsGiven.map((r) => ({
+        prNumber: r.prNumber,
+        state: r.state,
+        body: r.body?.slice(0, 200)
+      }))
+    },
+    null,
+    2
+  );
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage }
+      ],
+      temperature: 0.3,
+      max_tokens: 1500
+    })
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "unknown error");
+    throw new Error(`OpenAI API error ${response.status}: ${errorBody}`);
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
+
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    throw new Error("OpenAI returned empty content");
+  }
+
+  return content.trim();
+}
+
+export async function summarizeContributor(evidence: EvidenceT): Promise<{ summary: string; citations: string[] }> {
+  const citations = uniqueCitations(evidence);
+
+  try {
+    const llmSummary = await callChatGPT(evidence);
+    if (llmSummary) {
+      return { summary: llmSummary, citations };
+    }
+  } catch (err) {
+    console.warn("LLM summarization failed, falling back to deterministic summary:", err instanceof Error ? err.message : err);
+  }
+
+  const summary = buildDeterministicSummary(evidence);
+  return { summary, citations };
 }

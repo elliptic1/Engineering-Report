@@ -2,11 +2,13 @@
 
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import type { EvidenceT } from "@/lib/schemas";
 import { RepoInput } from "@/lib/schemas";
 import Form from "@/components/Form";
-import Results from "@/components/Results";
 import { useAuth } from "@/contexts/AuthContext";
+
+const Results = dynamic(() => import("@/components/Results"), { ssr: false });
 
 type AnalyzeResponse = {
   ok: true;
@@ -82,12 +84,33 @@ export default function AnalyzePage() {
       }
 
       setResult(json);
+
+      // Persist to Firestore and track usage in the background (lazy-loaded)
+      if (user) {
+        import("@/lib/history").then(({ saveAnalysis }) => {
+          saveAnalysis({
+            userId: user.uid,
+            repo: json.evidence.repo,
+            contributor: json.evidence.login,
+            summary: json.summary,
+            citations: json.citations,
+          }).catch((saveErr) => {
+            console.error("Failed to save analysis:", saveErr);
+          });
+        });
+
+        import("@/lib/usage").then(({ incrementUsage }) => {
+          incrementUsage(user.uid).catch((err) => {
+            console.error("Failed to increment usage:", err);
+          });
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const handleReset = useCallback(() => {
     setResult(null);

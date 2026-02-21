@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const { owner, repo } = normalizeRepoUrl(repoUrl);
 
     const evidence = await collectEvidence({ owner, repo, login, since, until });
-    const { summary, citations } = summarizeContributor(evidence);
+    const { summary, citations } = await summarizeContributor(evidence);
 
     return NextResponse.json({ ok: true, summary, citations, evidence });
   } catch (error) {

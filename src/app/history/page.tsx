@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { getUserHistory, type AnalysisRecord } from "@/lib/history";
 
 export default function HistoryPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [history, setHistory] = useState<AnalysisRecord[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -15,7 +19,37 @@ export default function HistoryPage() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+    setFetching(true);
+
+    getUserHistory(user.uid)
+      .then((records) => {
+        if (!cancelled) {
+          setHistory(records);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load history:", err);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setFetching(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }, []);
+
+  if (loading || (fetching && user)) {
     return (
       <main className="flex min-h-[80vh] items-center justify-center">
         <div className="flex items-center gap-3 text-slate-300">
@@ -29,9 +63,6 @@ export default function HistoryPage() {
   if (!user) {
     return null;
   }
-
-  // TODO: Fetch actual history from Firestore
-  const history: any[] = [];
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -80,10 +111,10 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-4">
-          {history.map((item, index) => (
+          {history.map((item) => (
             <div
-              key={index}
-              className="rounded-xl border border-dark-600 bg-dark-800 p-6"
+              key={item.id}
+              className="rounded-xl border border-dark-600 bg-dark-800 p-6 transition hover:border-dark-500"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -91,13 +122,55 @@ export default function HistoryPage() {
                     {item.repo}
                   </h3>
                   <p className="text-sm text-slate-400">
-                    Contributor: {item.login}
+                    Contributor: {item.contributor}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-slate-400">{item.date}</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-slate-400">
+                    {item.createdAt.toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(item.id)}
+                    className="rounded-lg border border-dark-600 px-3 py-1 text-sm text-slate-300 transition hover:border-dark-500 hover:text-white"
+                  >
+                    {expandedId === item.id ? "Collapse" : "View"}
+                  </button>
                 </div>
               </div>
+
+              {expandedId === item.id && (
+                <div className="mt-4 border-t border-dark-700 pt-4">
+                  <div className="prose prose-invert max-w-none whitespace-pre-wrap text-sm text-slate-200">
+                    {item.summary}
+                  </div>
+                  {item.citations.length > 0 && (
+                    <div className="mt-4 rounded-lg border border-dark-600 bg-dark-900 p-4">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                        Citations
+                      </h4>
+                      <ul className="mt-2 grid gap-1 text-sm">
+                        {item.citations.map((url) => (
+                          <li key={url}>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="break-all text-primary-500 hover:text-primary-400"
+                            >
+                              {url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

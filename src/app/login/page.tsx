@@ -69,7 +69,7 @@ export default function LoginPage() {
         </button>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
+          By signing in, you agree to our terms of use.
         </p>
       </div>
     </main>
