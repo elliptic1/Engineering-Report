@@ -169,7 +169,7 @@ export default function SettingsPage() {
               <div>
                 <p className="text-lg font-medium text-white">Upgrade to Pro</p>
                 <p className="text-slate-400">
-                  100 analyses/month • Private repos • 365-day history
+                  100 analyses/month • Private repos • 365-day history • Multi-pass AI summaries
                 </p>
               </div>
               <div className="text-right">

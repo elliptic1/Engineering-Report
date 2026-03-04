@@ -72,7 +72,7 @@ export default function AnalyzePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(validation.data),
+        body: JSON.stringify({ ...validation.data, userId: user?.uid }),
       });
 
       const json = (await response.json()) as AnalyzeResponse | ErrorResponse;
@@ -85,7 +85,7 @@ export default function AnalyzePage() {
 
       setResult(json);
 
-      // Persist to Firestore and track usage in the background (lazy-loaded)
+      // Persist to Firestore in the background (usage is tracked server-side)
       if (user) {
         import("@/lib/history").then(({ saveAnalysis }) => {
           saveAnalysis({
@@ -96,12 +96,6 @@ export default function AnalyzePage() {
             citations: json.citations,
           }).catch((saveErr) => {
             console.error("Failed to save analysis:", saveErr);
-          });
-        });
-
-        import("@/lib/usage").then(({ incrementUsage }) => {
-          incrementUsage(user.uid).catch((err) => {
-            console.error("Failed to increment usage:", err);
           });
         });
       }

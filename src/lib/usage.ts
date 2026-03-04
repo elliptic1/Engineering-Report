@@ -1,12 +1,16 @@
 import { doc, getDoc, setDoc, updateDoc, increment, Timestamp } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
 
+export type UserTier = "free" | "pro";
+
 const FREE_LIMIT = 5;
+const PRO_LIMIT = 100;
 const USAGE_COLLECTION = "usage";
 
 export type UsageData = {
   count: number;
   limit: number;
+  tier: UserTier;
 };
 
 function getStartOfNextMonth(): Date {
@@ -28,29 +32,32 @@ export async function getUsage(userId: string): Promise<UsageData> {
   const db = getFirebaseDb();
   if (!db) {
     console.warn("Firestore not available; returning default usage");
-    return { count: 0, limit: FREE_LIMIT };
+    return { count: 0, limit: FREE_LIMIT, tier: "free" };
   }
 
   const ref = doc(db, USAGE_COLLECTION, userId);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    return { count: 0, limit: FREE_LIMIT };
+    return { count: 0, limit: FREE_LIMIT, tier: "free" };
   }
 
   const data = snap.data();
   const resetAt = data.resetAt as Timestamp | undefined;
+  const tier: UserTier = data.tier === "pro" ? "pro" : "free";
+  const limit = tier === "pro" ? PRO_LIMIT : FREE_LIMIT;
 
   // If the reset date has passed, reset the counter
   if (resetAt && shouldReset(resetAt)) {
     await setDoc(ref, {
       count: 0,
+      tier,
       resetAt: Timestamp.fromDate(getStartOfNextMonth()),
     });
-    return { count: 0, limit: FREE_LIMIT };
+    return { count: 0, limit, tier };
   }
 
-  return { count: (data.count as number) ?? 0, limit: FREE_LIMIT };
+  return { count: (data.count as number) ?? 0, limit, tier };
 }
 
 /**
