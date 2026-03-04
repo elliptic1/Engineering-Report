@@ -120,7 +120,7 @@ const pricingPlans = [
       "Private repositories",
       "Team analysis",
       "365-day history",
-      "Multi-pass AI summaries that read like a real manager wrote them",
+      "Premium AI-powered summaries with deeper analysis",
     ],
     cta: "Upgrade to Pro",
     highlighted: true,

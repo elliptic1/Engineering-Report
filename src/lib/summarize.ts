@@ -8,11 +8,7 @@ import type { UserTier } from "./usage";
 
 const MODELS = {
   free: "gpt-4o-mini",
-  pro: {
-    writer: "gpt-4o",
-    editor: "gpt-4o",
-    recruiter: "gpt-4o",
-  },
+  pro: "gpt-4o",
 } as const;
 
 /* ------------------------------------------------------------------ */
@@ -307,108 +303,53 @@ async function summarizeFree(evidence: EvidenceT): Promise<string> {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Pro tier: three-pass pipeline (writer → editor → recruiter)        */
+/*  Pro tier: single-pass with a stronger model and richer prompt      */
 /* ------------------------------------------------------------------ */
 
-const PRO_WRITER_PROMPT = [
+const PRO_SYSTEM_PROMPT = [
   "You are a senior engineering manager writing a sprint contributor summary.",
-  "You have years of experience leading engineering teams and know exactly what matters in a performance review.",
-  "Write from your own perspective — like you personally reviewed this person's work.",
+  "You have years of experience leading engineering teams and know exactly what matters",
+  "when evaluating someone's work for a performance review or sprint retrospective.",
   "",
   "Given the contributor's GitHub activity below, write a detailed markdown summary with these sections:",
   "",
   "## Headline",
-  "One strong sentence that captures their biggest win this sprint. Write it like you'd say it in a team standup.",
+  "One strong sentence that captures their biggest win this sprint.",
   "",
   "### Key impacts",
-  "Bullet the most meaningful work. Reference PR numbers and commit SHAs. Explain WHY each matters, not just what changed.",
+  "Bullet the most meaningful work. Reference PR numbers and commit SHAs.",
+  "Explain WHY each matters to the project, not just what changed.",
   "",
   "### Collaboration & review notes",
-  "How did they show up for the team? Mention specific reviews, unblocking moments, or pairing sessions.",
+  "How did they show up for the team? Mention specific reviews they gave,",
+  "teammates they unblocked, or cross-cutting work they coordinated.",
   "",
   "### Engineering signals",
-  "What does their work tell you about their engineering judgment? Test coverage, cleanup, careful refactoring — call it out.",
+  "What does their work tell you about their engineering judgment?",
+  "Test coverage, cleanup, careful refactoring, incremental delivery — call it out with specifics.",
   "",
   "### Growth & coaching",
-  "One or two specific, actionable growth areas based on what you see in the evidence. Be direct but constructive.",
+  "One or two specific, actionable growth areas based on the evidence. Be direct but constructive.",
   "",
   "### Next-sprint suggestions",
   "What should they focus on next? Base this on patterns in their current work.",
   "",
-  "Important:",
-  "- Only reference data present in the evidence. Never make things up.",
-  "- Write like a real person, not a template. Vary your sentence structure.",
-  "- Be specific. Vague praise is worse than no praise."
-].join("\n");
-
-const PRO_EDITOR_PROMPT = [
-  "You are a writing editor who specializes in making business documents sound natural and human.",
-  "You've been given a contributor summary written by an engineering manager.",
-  "",
-  "Your job is to edit this summary so it reads like a real person wrote it — not an AI.",
-  "",
-  "Rules:",
-  "- Keep the exact same markdown structure (## Headline, ### Key impacts, etc.).",
-  "- Keep all PR numbers, commit SHAs, and technical facts exactly as they are.",
-  "- Break up any robotic patterns: vary sentence length, mix short punchy lines with longer ones.",
-  "- Replace generic filler ('demonstrated strong ownership', 'exhibited leadership') with concrete language.",
-  "- Add small natural touches — contractions, the occasional informal phrasing, a dash instead of a semicolon.",
-  "- Cut anything that sounds like boilerplate. If a bullet doesn't add real information, rewrite or remove it.",
-  "- The tone should feel like a thoughtful manager who actually knows this person's work.",
-  "- Do NOT add new information. Only reshape what's already there.",
-  "",
-  "Return the full edited summary in markdown."
-].join("\n");
-
-const PRO_RECRUITER_PROMPT = [
-  "You are a technical recruiter who reads engineering summaries to understand what people actually accomplished.",
-  "You know the difference between fluff and substance.",
-  "",
-  "You've been given an edited contributor summary. Give it one final polish:",
-  "",
-  "- Make sure every sentence earns its place. Cut dead weight.",
-  "- If anything still sounds like generic AI output ('notable contributions', 'key takeaway'), reword it to be specific.",
-  "- Make the headline punchy — something you'd actually remember after reading 20 of these.",
-  "- Ensure the growth and coaching section sounds like real advice from someone who cares, not a form letter.",
-  "- Tighten the language overall. Managers are busy — respect their time.",
-  "- Keep the markdown structure intact (## Headline, ### Key impacts, etc.).",
-  "- Keep all PR numbers, commit SHAs, and technical facts exactly as they are.",
-  "- Do NOT add new information or change any technical details.",
-  "",
-  "Return the final polished summary in markdown."
+  "Guidelines:",
+  "- Only reference data present in the evidence. Never fabricate information.",
+  "- Be specific — cite PR numbers, commit SHAs, and file paths.",
+  "- Write in a professional but natural tone. Vary sentence structure.",
+  "- Vague praise is worse than no praise. Every bullet should carry real information.",
+  "- Keep it concise. Managers are busy — respect their time."
 ].join("\n");
 
 async function summarizePro(evidence: EvidenceT): Promise<string> {
-  const evidencePayload = buildEvidencePayload(evidence);
-
-  // Pass 1: Writer — generate the raw summary with a top-tier model
-  const writerDraft = await chatCompletion(
-    MODELS.pro.writer,
-    PRO_WRITER_PROMPT,
-    evidencePayload,
-    0.5,
-    2000
-  );
-
-  // Pass 2: Editor — humanize the tone and remove AI patterns
-  const editedDraft = await chatCompletion(
-    MODELS.pro.editor,
-    PRO_EDITOR_PROMPT,
-    writerDraft,
-    0.6,
-    2000
-  );
-
-  // Pass 3: Recruiter — final polish for punch and clarity
-  const finalSummary = await chatCompletion(
-    MODELS.pro.recruiter,
-    PRO_RECRUITER_PROMPT,
-    editedDraft,
+  return chatCompletion(
+    MODELS.pro,
+    PRO_SYSTEM_PROMPT,
+    buildEvidencePayload(evidence),
     0.4,
     2000
   );
-
-  return finalSummary;
 }
 
 /* ------------------------------------------------------------------ */
